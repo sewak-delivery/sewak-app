@@ -1,12 +1,11 @@
 {
-  "name": "sewak-backend-starter",
+  "name": "sewak-delivery-app",
   "version": "1.0.0",
   "private": true,
-  "description": "SEWAK web frontend and backend starter for Dalmau and Murai Bagh",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "engines": {
     "node": ">=20"

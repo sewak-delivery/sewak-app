@@ -14,7 +14,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Err
 const app = express();
 app.use(helmet());
 app.use(cors({ origin: (process.env.CORS_ORIGIN || "http://localhost:8080").split(",").map(x=>x.trim()) }));
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "100kb", verify: (req, _res, buf) => { req.rawBody = Buffer.from(buf); } }));
 app.use(express.static("public"));
 const authLimiter = rateLimit({ windowMs: 15*60*1000, limit: 20, standardHeaders: true, legacyHeaders: false });
 const orderLimiter = rateLimit({ windowMs: 60*1000, limit: 10, standardHeaders: true, legacyHeaders: false });
@@ -148,13 +148,13 @@ app.patch("/api/delivery/orders/:id/status",requireAuth,allowRoles("delivery","a
 
 // Razorpay webhook: configure this exact URL and secret in Razorpay dashboard.
 // In production, use raw-body verification middleware for the webhook route.
-app.post("/api/payments/razorpay/webhook",express.raw({type:"application/json"}),async(req,res,next)=>{
+app.post("/api/payments/razorpay/webhook",(req,res,next)=>{ req.body=req.rawBody||Buffer.alloc(0); next(); },async(req,res,next)=>{
   try{
     const secret=process.env.RAZORPAY_WEBHOOK_SECRET;
     if(!secret)return res.status(503).send("Webhook secret not configured");
     const signature=req.headers["x-razorpay-signature"];
     const expected=crypto.createHmac("sha256",secret).update(req.body).digest("hex");
-    if(typeof signature!=="string"||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return res.status(400).send("Invalid signature");
+    if(typeof signature!=="string"||signature.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(signature),Buffer.from(expected)))return res.status(400).send("Invalid signature");
     const event=JSON.parse(req.body.toString("utf8"));
     const eventId=req.headers["x-razorpay-event-id"]||null;
     const payment=event.payload?.payment?.entity;
